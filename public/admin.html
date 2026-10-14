@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Admin | Class Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="stack">
+  <section id="gate" class="panel">
+    <form id="lf">
+      <label for="apw">Admin password</label>
+      <input id="apw" type="password" required>
+      <button type="submit">Sign in</button>
+      <p class="err" id="lerr" role="alert"></p>
+    </form>
+  </section>
+  <div id="app" class="hidden stack">
+    <section class="panel">
+      <h2>Add material</h2>
+      <form id="uf">
+        <label for="title">Title students will see</label>
+        <input id="title" type="text" required>
+        <label for="file">File (PDF, ZIP, any document, up to 50 MB)</label>
+        <input id="file" type="file">
+        <label for="url">Or a link</label>
+        <input id="url" type="url" placeholder="https://">
+        <button type="submit">Add</button>
+        <p class="err" id="uerr" role="alert"></p>
+      </form>
+    </section>
+    <section class="panel"><h2>Materials</h2><ul id="list"></ul></section>
+    <section class="panel">
+      <h2>QR code for students</h2>
+      <label for="site">Address students will open (your public or Wi-Fi URL)</label>
+      <input id="site" type="url">
+      <button id="qrb" type="button">Generate QR code</button>
+      <div id="qr"></div>
+    </section>
+  </div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const j = (u, o) => fetch(u, o).then(async r => { if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Request failed'); return r.json(); });
+async function refresh() {
+  const items = await j('/api/admin/resources');
+  $('gate').classList.add('hidden'); $('app').classList.remove('hidden');
+  $('site').value ||= location.origin;
+  $('list').innerHTML = items.length ? '' : '<li class="empty">No materials yet.</li>';
+  for (const i of items) {
+    const li = document.createElement('li');
+    const t = document.createElement('span'); t.textContent = `${i.title} (${i.kind})`;
+    const b = document.createElement('button'); b.className = 'ghost'; b.textContent = 'Delete';
+    b.onclick = async () => { if (confirm('Delete "' + i.title + '"?')) { await j('/api/admin/resources/' + i.id, { method: 'DELETE' }); refresh(); } };
+    li.append(t, b); $('list').append(li);
+  }
+}
+$('lf').onsubmit = async e => { e.preventDefault(); $('lerr').textContent = '';
+  try { await j('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: $('apw').value }) }); refresh(); }
+  catch (x) { $('lerr').textContent = x.message; } };
+const H = { 'Content-Type': 'application/json' };
+$('uf').onsubmit = async e => { e.preventDefault(); $('uerr').textContent = 'Uploading...';
+  try {
+    const f = $('file').files[0]; let body;
+    if (f) {
+      const s = await j('/api/admin/upload-url', { method: 'POST', headers: H, body: JSON.stringify({ filename: f.name }) });
+      const fd = new FormData(); fd.append('cacheControl', '3600'); fd.append('', f);
+      const r = await fetch(s.url, { method: 'PUT', body: fd });
+      if (!r.ok) throw new Error('Upload to storage failed. Check the bucket name and file size (50 MB max).');
+      body = { title: $('title').value, kind: 'file', storage_path: s.path };
+    } else body = { title: $('title').value, kind: 'link', url: $('url').value };
+    await j('/api/admin/resources', { method: 'POST', headers: H, body: JSON.stringify(body) });
+    $('uf').reset(); $('uerr').textContent = ''; refresh();
+  } catch (x) { $('uerr').textContent = x.message; } };
+$('qrb').onclick = async () => { const { png } = await j('/api/admin/qr?url=' + encodeURIComponent($('site').value));
+  $('qr').innerHTML = `<img alt="QR code" src="${png}"><p><a class="btn" download="class-qr.png" href="${png}">Save QR image</a></p>`; };
+j('/api/admin/resources').then(refresh).catch(() => {});
+</script>
+</body>
+</html>

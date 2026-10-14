@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rashid Ahmad | Digital Marketing Class Materials</title>
+<meta name="description" content="Class materials for Rashid Ahmad's digital marketing course. Enter the class password to download your files.">
+<meta property="og:title" content="Rashid Ahmad | Digital Marketing Class">
+<meta property="og:description" content="Enter the class password to download your course materials.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#0b1030">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header>
+    <h1>Rashid Ahmad</h1>
+    <p class="lead">Welcome to the Digital Marketing class. Enter the class password to get your materials.</p>
+  </header>
+  <section id="gate" class="panel" aria-label="Class password">
+    <form id="f">
+      <label for="pw">Class password</label>
+      <input id="pw" type="password" autocomplete="current-password" required>
+      <button type="submit">Unlock materials</button>
+      <p class="err" id="err" role="alert"></p>
+    </form>
+  </section>
+  <section id="files" class="panel hidden" aria-label="Downloads">
+    <h2>Your materials</h2>
+    <ul id="list"></ul>
+  </section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+async function load() {
+  const r = await fetch('/api/resources');
+  if (!r.ok) return false;
+  const items = await r.json();
+  $('list').innerHTML = items.length ? '' : '<li class="empty">Nothing here yet. Check back soon.</li>';
+  for (const i of items) {
+    const li = document.createElement('li');
+    const t = document.createElement('span'); t.textContent = i.title;
+    const a = document.createElement('a'); a.className = 'btn';
+    a.href = '/api/download/' + i.id; a.textContent = i.kind === 'link' ? 'Open' : 'Download';
+    if (i.kind === 'link') { a.target = '_blank'; a.rel = 'noopener'; }
+    li.append(t, a); $('list').append(li);
+  }
+  $('gate').classList.add('hidden'); $('files').classList.remove('hidden');
+  return true;
+}
+$('f').addEventListener('submit', async e => {
+  e.preventDefault(); $('err').textContent = '';
+  const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: $('pw').value }) });
+  if (r.ok) load(); else $('err').textContent = (await r.json()).error || 'Something went wrong';
+});
+load();
+</script>
+</body>
+</html>
