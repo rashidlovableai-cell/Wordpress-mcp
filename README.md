@@ -1,47 +1,32 @@
 # Class Hub
 
-Password-protected download page for your class. Students see only your name and a download list. You manage everything at `/admin`.
+Password-protected download page for a class. Students see a welcome page, enter the class password, then see only Download buttons. You manage files at `/admin`.
 
-## 1. Supabase (one time)
-1. Create a project at supabase.com.
-2. Storage: create a **private** bucket named `class-files`.
-3. SQL Editor: run
-
-```sql
-create table resources (
-  id uuid primary key default gen_random_uuid(),
-  title text not null,
-  kind text not null check (kind in ('file','link')),
-  url text,
-  storage_path text,
-  created_at timestamptz default now()
-);
-alter table resources enable row level security;
+## Structure
 ```
-4. Project Settings > API: copy the Project URL and the `service_role` key.
-
-## 2. Run locally
+class-hub/
+  public/index.html     student page (password + downloads)
+  public/admin.html     your upload, delete and QR page
+  public/style.css      shared styling
+  lib/server.js         Express API (auth, Supabase, QR)
+  api/index.js          Vercel entry point
+  vercel.json           Vercel routing
+  supabase-setup.sql    table + private bucket
+  (no secrets here: copy .env.example to .env locally)
 ```
-npm install
-cp .env.example .env     # fill in your values
-npm start
-```
-- Students: http://localhost:3000
-- You: http://localhost:3000/admin
 
-## 3. QR code
-Phones can't open `localhost`. In `/admin`, enter the address students can reach (your laptop's Wi-Fi IP like `http://192.168.1.20:3000`, or a tunnel URL from `ngrok http 3000`), click **Generate QR code**, and show or save it.
-
-## Security
-- Passwords and the Supabase key stay on the server in `.env`. Never share the `service_role` key.
-- Files are private; each download uses a 60-second signed link.
-- Login is limited to 10 attempts per 15 minutes per device.
+## Setup
+1. Supabase > SQL Editor: paste `supabase-setup.sql` and Run. Check Table Editor shows `resources` and Storage shows `class-files`.
+2. Local test: `npm install` then `npm start`. Open http://localhost:3000 (students) and /admin (you).
 
 ## Deploy on Vercel
-1. Push the folder to GitHub and import it in Vercel (no build settings needed).
-2. Project > Settings > Environment Variables: add all five values from `.env.example` (`SUPABASE_SERVICE_KEY` must be the **service_role** key). Then **Redeploy**.
-3. Open `https://your-app.vercel.app/admin`, upload, then generate the QR code with that address.
+1. Import the folder (GitHub or Vercel CLI). `.env` is ignored on purpose.
+2. Vercel > Settings > Environment Variables: paste the whole contents of `.env` (remove the PORT line if you like). Do not add quotes.
+3. Deployments > Redeploy.
+4. Test `https://YOUR-APP.vercel.app/api/resources`: it should say "Unauthorized". If it names missing variables, add them and redeploy.
+5. Open `/admin`, upload, enter your site address, generate the QR code.
 
-## Troubleshooting
-- **500 FUNCTION_INVOCATION_FAILED on Vercel**: environment variables missing or the project not redeployed after adding them. Open `/api/resources`; it now names any missing variable.
-- **"Failed to fetch (api.supabase.com)" in the SQL Editor**: a network problem between your browser and Supabase, not a SQL error. Retry, disable ad blockers/VPN or try another network or DNS (1.1.1.1), and check status.supabase.com.
+## Security
+- Rotate the Supabase key if it was ever shared: Supabase > Settings > API Keys > create a new secret key, update Vercel, disable the old one.
+- Use a stronger admin password than a name plus number.
+- Files are private; each download uses a 60-second signed link.

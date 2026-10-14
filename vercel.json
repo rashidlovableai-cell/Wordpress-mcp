@@ -1,6 +1,4 @@
 {
-  "rewrites": [
-    { "source": "/admin", "destination": "/admin.html" },
-    { "source": "/api/(.*)", "destination": "/api" }
-  ]
+  "functions": { "api/index.js": { "includeFiles": "public/**" } },
+  "rewrites": [{ "source": "/(.*)", "destination": "/api" }]
 }
